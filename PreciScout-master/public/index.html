@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PreciScout</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- Ionicons for icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+
+<body>
+    <div class="background-globes">
+        <div class="globe globe-1"></div>
+        <div class="globe globe-2"></div>
+        <div class="globe globe-3"></div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1><span class="highlight">PreciScout</span></h1>
+        </header>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Buscar producto de la canasta (ej: arroz, lenteja...)">
+            <button id="searchBtn">
+                <ion-icon name="search-outline"></ion-icon>
+                Buscar
+            </button>
+        </div>
+
+        <div id="loading" class="hidden">
+            <div class="spinner"></div>
+            <p>Buscando precios en Éxito y Olímpica...</p>
+        </div>
+
+        <div id="categories-section" class="categories-section">
+            <h2 class="section-title">Canasta Familiar Alimentaria</h2>
+            <p class="section-subtitle">Selecciona o busca un producto básico para comparar precios</p>
+            <div id="categories-grid" class="categories-wrapper"></div>
+        </div>
+
+        <div id="results" class="results-grid hidden">
+            <!-- Product Cards will be injected here -->
+        </div>
+
+        <div id="error-message" class="hidden">
+            <p id="error-text">Ocurrió un error al buscar.</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
