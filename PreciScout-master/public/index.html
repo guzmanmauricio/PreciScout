@@ -8,7 +8,7 @@
     <meta name="description" content="Compara precios de productos de la canasta familiar entre Éxito y Olímpica. Encuentra los mejores precios y guarda tus favoritos.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <!-- Ionicons for icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
@@ -25,12 +25,13 @@
         <div class="globe globe-1"></div>
         <div class="globe globe-2"></div>
         <div class="globe globe-3"></div>
+        <div class="pattern-overlay"></div>
     </div>
 
     <!-- ============ NAV BAR ============ -->
     <nav class="navbar" id="navbar">
         <div class="nav-brand" id="navBrand">
-            <span class="nav-logo">🟠</span>
+            <span class="nav-logo">🛒</span>
             <span class="nav-title">PreciScout</span>
         </div>
         <div class="nav-actions">
@@ -99,8 +100,21 @@
             <div id="categories-grid" class="categories-wrapper"></div>
         </div>
 
-        <div id="results" class="results-grid hidden">
-            <!-- Product Cards will be injected here -->
+        <div id="results-layout" class="results-layout hidden">
+            <div class="main-results">
+                <h2 class="results-heading">Todos los Productos</h2>
+                <div id="results" class="results-grid">
+                    <!-- Product Cards will be injected here -->
+                </div>
+            </div>
+            <div class="best-prices-sidebar">
+                <div class="best-prices-header">
+                    <h2>Mejores Precios</h2>
+                </div>
+                <div id="best-results" class="best-grid">
+                    <!-- Top 3 Product Cards will be injected here -->
+                </div>
+            </div>
         </div>
 
         <div id="error-message" class="hidden">

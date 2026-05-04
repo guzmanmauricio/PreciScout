@@ -15,7 +15,7 @@ async function test() {
             console.log("Link:", p.link);
             if (p.items && p.items.length > 0) {
                 console.log("Image:", p.items[0].images[0].imageUrl);
-                console.log("Price:", p.items[0].sellers[0].commertialOffer.Price);
+                console.log("CommertialOffer:", p.items[0].sellers[0].commertialOffer);
             }
         } else {
             console.log("Not array or empty:", typeof response.data);

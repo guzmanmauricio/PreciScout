@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchInput');
     const searchBtn = document.getElementById('searchBtn');
     const resultsContainer = document.getElementById('results');
+    const resultsLayout = document.getElementById('results-layout');
+    const bestResultsContainer = document.getElementById('best-results');
     const loadingEl = document.getElementById('loading');
     const errorEl = document.getElementById('error-message');
     const errorText = document.getElementById('error-text');
@@ -44,12 +46,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // CATEGORIES
     // ============================================================
     const categories = [
-        { name: "Cereales y derivados", items: ["Arroz", "Pan", "Pasta", "Harina"], icon: "nutrition-outline" },
+        { name: "Cereales y derivados", items: ["Arroz", "Pasta", "Harina"], icon: "nutrition-outline" },
         { name: "Tubérculos y plátanos", items: ["Papa", "Yuca", "Plátano"], icon: "leaf-outline" },
         { name: "Legumbres", items: ["Fríjol", "Lenteja", "Garbanzo", "Arveja"], icon: "restaurant-outline" },
         { name: "Verduras", items: ["Tomate", "Cebolla", "Zanahoria", "Habichuela"], icon: "water-outline" },
         { name: "Frutas", items: ["Banano", "Naranja", "Limón", "Guayaba", "Mora"], icon: "pizza-outline" },
-        { name: "Proteínas", items: ["Carne de res", "Carne de cerdo", "Pollo", "Pescado", "Huevos"], icon: "fish-outline" },
+        { name: "Proteínas", items: ["Carne", "Carnes frías", "Pescado", "Huevos"], icon: "fish-outline" },
         { name: "Lácteos", items: ["Leche", "Queso"], icon: "cafe-outline" },
         { name: "Otros básicos", items: ["Aceite", "Azúcar", "Panela", "Café", "Chocolate", "Sal"], icon: "basket-outline" }
     ];
@@ -89,8 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // UI Updates
         categoriesSection.classList.add('hidden');
-        resultsContainer.innerHTML = '';
-        resultsContainer.classList.add('hidden');
+        if (resultsLayout) resultsLayout.classList.add('hidden');
+        if (resultsContainer) resultsContainer.innerHTML = '';
+        if (bestResultsContainer) bestResultsContainer.innerHTML = '';
         loadingEl.classList.remove('hidden');
         errorEl.classList.add('hidden');
         searchBtn.disabled = true;
@@ -103,16 +106,49 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.error || 'Error al buscar en el servidor.');
             }
 
-            resultsContainer.classList.remove('hidden');
+            if (resultsLayout) resultsLayout.classList.remove('hidden');
             if (data.length === 0) {
-                resultsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; font-size: 1.2rem; color: #f8fafc;">No se encontraron productos en ninguna tienda.</p>';
+                if (resultsContainer) resultsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; font-size: 1.2rem; color: #f8fafc;">No se encontraron productos en ninguna tienda.</p>';
+                const sidebar = document.querySelector('.best-prices-sidebar');
+                if (sidebar) sidebar.style.display = 'none';
                 return;
             }
 
-            data.forEach((product, index) => {
-                const card = createProductCard(product, index);
-                resultsContainer.appendChild(card);
-            });
+            const sidebar = document.querySelector('.best-prices-sidebar');
+            
+            if (!currentUser) {
+                if (sidebar) sidebar.style.display = 'none';
+            } else {
+                if (sidebar) sidebar.style.display = 'block';
+                
+                const bestHeader = sidebar.querySelector('h2');
+                if (bestHeader) bestHeader.textContent = 'En tu Canasta';
+
+                const lowerQuery = query.toLowerCase();
+                const basketMatches = userBasket.filter(item => item.name.toLowerCase().includes(lowerQuery));
+
+                if (bestResultsContainer) {
+                    bestResultsContainer.innerHTML = '';
+                    if (basketMatches.length === 0) {
+                        bestResultsContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No tienes productos de esta categoría en tu canasta.</p>';
+                    } else {
+                        basketMatches.forEach((product, index) => {
+                            const card = createProductCard(product, index, true, index + 1);
+                            bestResultsContainer.appendChild(card);
+                        });
+                    }
+                }
+            }
+
+            const rest = data; // Show all products in the main grid
+
+            // Render rest
+            if (resultsContainer) {
+                rest.forEach((product, index) => {
+                    const card = createProductCard(product, index, false);
+                    resultsContainer.appendChild(card);
+                });
+            }
 
         } catch (error) {
             console.error('Error fetching products:', error);
@@ -125,9 +161,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function createProductCard(product, index) {
+    function createProductCard(product, index, isBest = false, rank = 0) {
         const card = document.createElement('div');
-        card.className = 'product-card';
+        card.className = isBest ? 'product-card best-card' : 'product-card';
         card.style.animation = `fadeInUp 0.5s ease forwards ${index * 0.05}s`;
         card.style.opacity = '0';
 
@@ -139,6 +175,12 @@ document.addEventListener('DOMContentLoaded', () => {
             item.name === product.name && item.store === product.store
         );
 
+        const isAgotado = product.price === 'Agotado';
+        const priceHTML = isAgotado ? `<span style="color: var(--danger); font-weight: bold;">Agotado</span>` : product.price;
+        const btnBasketHtml = isAgotado ? '' : `<button class="btn-add-basket ${isInBasket ? 'in-basket' : ''}" title="${isInBasket ? 'Ya en tu canasta' : 'Agregar a Mi Canasta'}">
+                        <ion-icon name="${isInBasket ? 'checkmark-circle' : 'basket-outline'}"></ion-icon>
+                    </button>`;
+
         card.innerHTML = `
             <div class="badge-store" style="background: ${storeColor}; color: ${storeTextColor}; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">${product.store}</div>
             <div class="card-image">
@@ -146,25 +188,25 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="card-content">
                 <h3 class="product-name" title="${product.name}">${product.name}</h3>
-                <div class="product-price">${product.price}</div>
+                <div class="product-price">${priceHTML}</div>
                 <div class="card-actions">
                     <a href="${product.link}" target="_blank" class="visit-btn" style="background: ${storeColor}; color: ${storeTextColor};">Comprar en ${product.store}</a>
-                    <button class="btn-add-basket ${isInBasket ? 'in-basket' : ''}" title="${isInBasket ? 'Ya en tu canasta' : 'Agregar a Mi Canasta'}">
-                        <ion-icon name="${isInBasket ? 'checkmark-circle' : 'basket-outline'}"></ion-icon>
-                    </button>
+                    ${btnBasketHtml}
                 </div>
             </div>
         `;
 
         // Add to basket button
-        const addBtn = card.querySelector('.btn-add-basket');
-        addBtn.addEventListener('click', () => {
-            if (isInBasket) {
-                showToast('Este producto ya está en tu canasta', 'info');
-                return;
-            }
-            handleAddToBasket(product, addBtn);
-        });
+        if (!isAgotado) {
+            const addBtn = card.querySelector('.btn-add-basket');
+            addBtn.addEventListener('click', () => {
+                if (isInBasket) {
+                    showToast('Este producto ya está en tu canasta', 'info');
+                    return;
+                }
+                handleAddToBasket(product, addBtn);
+            });
+        }
 
         return card;
     }
@@ -220,6 +262,8 @@ document.addEventListener('DOMContentLoaded', () => {
             userInfo.classList.add('hidden');
             btnBasket.classList.add('hidden');
             closeBasketPanel();
+            const sidebar = document.querySelector('.best-prices-sidebar');
+            if (sidebar) sidebar.style.display = 'none';
         }
     }
 
@@ -438,8 +482,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Nav brand click = go home
     navBrand.addEventListener('click', () => {
         searchInput.value = '';
-        resultsContainer.innerHTML = '';
-        resultsContainer.classList.add('hidden');
+        if (resultsContainer) resultsContainer.innerHTML = '';
+        if (bestResultsContainer) bestResultsContainer.innerHTML = '';
+        if (resultsLayout) resultsLayout.classList.add('hidden');
         errorEl.classList.add('hidden');
         categoriesSection.classList.remove('hidden');
     });
@@ -447,8 +492,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Header click = go home
     document.querySelector('header h1').addEventListener('click', () => {
         searchInput.value = '';
-        resultsContainer.innerHTML = '';
-        resultsContainer.classList.add('hidden');
+        if (resultsContainer) resultsContainer.innerHTML = '';
+        if (bestResultsContainer) bestResultsContainer.innerHTML = '';
+        if (resultsLayout) resultsLayout.classList.add('hidden');
         errorEl.classList.add('hidden');
         categoriesSection.classList.remove('hidden');
     });
