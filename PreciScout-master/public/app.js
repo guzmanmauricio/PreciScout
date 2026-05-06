@@ -28,6 +28,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCloseBasket = document.getElementById('btnCloseBasket');
     const basketItems = document.getElementById('basketItems');
     const basketEmpty = document.getElementById('basketEmpty');
+    const basketSummary = document.getElementById('basketSummary');
+
+    // Quantity modal elements
+    const qtyModal = document.getElementById('qtyModal');
+    const qtyModalProduct = document.getElementById('qtyModalProduct');
+    const qtyMinus = document.getElementById('qtyMinus');
+    const qtyPlus = document.getElementById('qtyPlus');
+    const qtyValue = document.getElementById('qtyValue');
+    const qtyCancel = document.getElementById('qtyCancel');
+    const qtyConfirm = document.getElementById('qtyConfirm');
+    const qtyBackdrop = qtyModal ? qtyModal.querySelector('.qty-modal-backdrop') : null;
 
     // Toast
     const toast = document.getElementById('toast');
@@ -41,6 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================================
     let currentUser = null;
     let userBasket = []; // local cache of basket items
+    let pendingProduct = null; // product waiting for quantity selection
+    let pendingButtonEl = null; // button element for pending product
+    let modalQuantity = 1;
 
     // ============================================================
     // CATEGORIES
@@ -275,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // BASKET FUNCTIONS — FIRESTORE
     // ============================================================
 
-    async function handleAddToBasket(product, buttonEl) {
+    function handleAddToBasket(product, buttonEl) {
         // If not logged in, prompt to sign in first
         if (!currentUser) {
             showToast('Inicia sesión para guardar productos', 'info');
@@ -283,42 +297,92 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Check if already exists
+        const exists = userBasket.some(item => 
+            item.name === product.name && item.store === product.store
+        );
+
+        if (exists) {
+            showToast('Este producto ya está en tu canasta', 'info');
+            return;
+        }
+
+        // Show quantity picker modal
+        pendingProduct = product;
+        pendingButtonEl = buttonEl;
+        modalQuantity = 1;
+        qtyValue.textContent = '1';
+
+        const storeColor = product.store === 'Exito' ? '#FFD233' : '#0070bc';
+        const storeTextColor = product.store === 'Exito' ? '#1e293b' : '#ffffff';
+
+        qtyModalProduct.innerHTML = `
+            <div class="qty-modal-product-img">
+                <img src="${product.image}" alt="${product.name}" onerror="this.src='https://via.placeholder.com/60?text=?'">
+            </div>
+            <div class="qty-modal-product-info">
+                <span class="basket-item-store" style="background: ${storeColor}; color: ${storeTextColor};">${product.store}</span>
+                <p class="qty-modal-product-name">${product.name}</p>
+                <span class="qty-modal-product-price">${product.price}</span>
+            </div>
+        `;
+
+        qtyModal.classList.remove('hidden');
+    }
+
+    async function confirmAddToBasket() {
+        if (!pendingProduct || !currentUser) return;
+
         try {
-            // Check if already exists
-            const exists = userBasket.some(item => 
-                item.name === product.name && item.store === product.store
-            );
-
-            if (exists) {
-                showToast('Este producto ya está en tu canasta', 'info');
-                return;
-            }
-
-            // Save to Firestore
             await db.collection('users').doc(currentUser.uid)
                 .collection('basket').add({
-                    store: product.store,
-                    name: product.name,
-                    price: product.price,
-                    priceValue: product.priceValue,
-                    image: product.image,
-                    link: product.link,
+                    store: pendingProduct.store,
+                    name: pendingProduct.name,
+                    price: pendingProduct.price,
+                    priceValue: pendingProduct.priceValue,
+                    image: pendingProduct.image,
+                    link: pendingProduct.link,
+                    quantity: modalQuantity,
                     addedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
             // Update button UI
-            if (buttonEl) {
-                buttonEl.classList.add('in-basket');
-                buttonEl.title = 'Ya en tu canasta';
-                buttonEl.querySelector('ion-icon').setAttribute('name', 'checkmark-circle');
+            if (pendingButtonEl) {
+                pendingButtonEl.classList.add('in-basket');
+                pendingButtonEl.title = 'Ya en tu canasta';
+                pendingButtonEl.querySelector('ion-icon').setAttribute('name', 'checkmark-circle');
             }
 
-            showToast('Producto agregado a tu canasta 🛒', 'success');
-            // Basket will update via the onSnapshot listener
-
+            showToast(`${modalQuantity}x producto agregado a tu canasta 🛒`, 'success');
         } catch (error) {
             console.error('Error adding to basket:', error);
             showToast('Error al agregar el producto', 'error');
+        } finally {
+            closeQtyModal();
+        }
+    }
+
+    function closeQtyModal() {
+        qtyModal.classList.add('hidden');
+        pendingProduct = null;
+        pendingButtonEl = null;
+        modalQuantity = 1;
+    }
+
+    async function updateBasketQuantity(docId, newQty) {
+        if (!currentUser) return;
+
+        try {
+            if (newQty <= 0) {
+                // Remove the item if quantity drops to 0
+                await removeFromBasket(docId);
+                return;
+            }
+            await db.collection('users').doc(currentUser.uid)
+                .collection('basket').doc(docId).update({ quantity: newQty });
+        } catch (error) {
+            console.error('Error updating quantity:', error);
+            showToast('Error al actualizar la cantidad', 'error');
         }
     }
 
@@ -358,9 +422,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateBasketBadge() {
-        const count = userBasket.length;
-        if (count > 0) {
-            basketBadge.textContent = count;
+        const totalUnits = userBasket.reduce((sum, item) => sum + (item.quantity || 1), 0);
+        if (totalUnits > 0) {
+            basketBadge.textContent = totalUnits;
             basketBadge.classList.remove('hidden');
         } else {
             basketBadge.classList.add('hidden');
@@ -373,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (userBasket.length === 0) {
             basketEmpty.classList.remove('hidden');
             basketItems.classList.add('hidden');
+            basketSummary.classList.add('hidden');
             return;
         }
 
@@ -387,6 +452,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const storeColor = item.store === 'Exito' ? '#FFD233' : '#0070bc';
             const storeTextColor = item.store === 'Exito' ? '#1e293b' : '#ffffff';
+            const qty = item.quantity || 1;
+            const pv = item.priceValue || 0;
+            const isAgotado = item.price === 'Agotado' || pv >= 999999999;
+            const subtotal = !isAgotado && pv > 0
+                ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(pv * qty)
+                : '';
 
             el.innerHTML = `
                 <div class="basket-item-img">
@@ -396,6 +467,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="basket-item-store" style="background: ${storeColor}; color: ${storeTextColor};">${item.store}</span>
                     <p class="basket-item-name" title="${item.name}">${item.name}</p>
                     <span class="basket-item-price">${item.price}</span>
+                    <div class="basket-item-qty">
+                        <button class="basket-qty-btn qty-dec" title="Reducir cantidad">
+                            <ion-icon name="remove-outline"></ion-icon>
+                        </button>
+                        <span class="basket-qty-value">${qty}</span>
+                        <button class="basket-qty-btn qty-inc" title="Aumentar cantidad">
+                            <ion-icon name="add-outline"></ion-icon>
+                        </button>
+                    </div>
+                    ${subtotal ? `<span class="basket-item-subtotal">Subtotal: ${subtotal}</span>` : ''}
                 </div>
                 <div class="basket-item-actions">
                     <a href="${item.link}" target="_blank" class="basket-item-link" title="Ver en tienda">
@@ -407,6 +488,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
+            // Quantity buttons
+            el.querySelector('.qty-dec').addEventListener('click', () => {
+                const newQty = qty - 1;
+                updateBasketQuantity(item.id, newQty);
+            });
+            el.querySelector('.qty-inc').addEventListener('click', () => {
+                updateBasketQuantity(item.id, qty + 1);
+            });
+
             // Remove button
             el.querySelector('.basket-item-remove').addEventListener('click', () => {
                 el.style.animation = 'slideOutRight 0.3s ease forwards';
@@ -415,6 +505,98 @@ document.addEventListener('DOMContentLoaded', () => {
 
             basketItems.appendChild(el);
         });
+
+        // Render the summary footer
+        renderBasketSummary();
+    }
+
+    // ============================================================
+    // BASKET SUMMARY — TOTAL + CATEGORY BREAKDOWN
+    // ============================================================
+    function classifyProductCategory(productName) {
+        const name = productName.toLowerCase();
+        for (const cat of categories) {
+            for (const keyword of cat.items) {
+                if (name.includes(keyword.toLowerCase())) {
+                    return cat;
+                }
+            }
+        }
+        return null; // Uncategorized
+    }
+
+    function renderBasketSummary() {
+        if (userBasket.length === 0) {
+            basketSummary.classList.add('hidden');
+            return;
+        }
+
+        basketSummary.classList.remove('hidden');
+
+        // Calculate total (only items with valid prices)
+        let grandTotal = 0;
+        const categoryMap = {}; // { categoryName: { count, total, icon } }
+
+        userBasket.forEach(item => {
+            const pv = item.priceValue || 0;
+            const qty = item.quantity || 1;
+            const isAgotado = item.price === 'Agotado' || pv >= 999999999;
+
+            if (!isAgotado && pv > 0) {
+                grandTotal += pv * qty;
+            }
+
+            const cat = classifyProductCategory(item.name);
+            const catName = cat ? cat.name : 'Otros';
+            const catIcon = cat ? cat.icon : 'pricetag-outline';
+
+            if (!categoryMap[catName]) {
+                categoryMap[catName] = { count: 0, total: 0, icon: catIcon };
+            }
+            categoryMap[catName].count += qty;
+            if (!isAgotado && pv > 0) {
+                categoryMap[catName].total += pv * qty;
+            }
+        });
+
+        const totalFormatted = new Intl.NumberFormat('es-CO', {
+            style: 'currency', currency: 'COP', maximumFractionDigits: 0
+        }).format(grandTotal);
+
+        // Build category rows HTML
+        let catRowsHTML = '';
+        for (const [catName, data] of Object.entries(categoryMap)) {
+            const catTotal = new Intl.NumberFormat('es-CO', {
+                style: 'currency', currency: 'COP', maximumFractionDigits: 0
+            }).format(data.total);
+
+            catRowsHTML += `
+                <div class="basket-summary-cat-row">
+                    <div class="basket-summary-cat-info">
+                        <div class="basket-summary-cat-icon">
+                            <ion-icon name="${data.icon}"></ion-icon>
+                        </div>
+                        <span class="basket-summary-cat-name">${catName}</span>
+                        <span class="basket-summary-cat-count">${data.count} ${data.count === 1 ? 'producto' : 'productos'}</span>
+                    </div>
+                    <span class="basket-summary-cat-price">${catTotal}</span>
+                </div>
+            `;
+        }
+
+        basketSummary.innerHTML = `
+            <div class="basket-summary-total">
+                <span class="basket-summary-total-label">
+                    <ion-icon name="wallet-outline"></ion-icon>
+                    Total
+                </span>
+                <span class="basket-summary-total-value">${totalFormatted}</span>
+            </div>
+            <div class="basket-summary-categories-title">Desglose por categoría</div>
+            <div class="basket-summary-categories">
+                ${catRowsHTML}
+            </div>
+        `;
     }
 
     // ============================================================
@@ -436,9 +618,30 @@ document.addEventListener('DOMContentLoaded', () => {
     btnCloseBasket.addEventListener('click', closeBasketPanel);
     basketOverlay.addEventListener('click', closeBasketPanel);
 
-    // Close basket with Escape key
+    // Quantity modal event listeners
+    qtyMinus.addEventListener('click', () => {
+        if (modalQuantity > 1) {
+            modalQuantity--;
+            qtyValue.textContent = modalQuantity;
+        }
+    });
+    qtyPlus.addEventListener('click', () => {
+        modalQuantity++;
+        qtyValue.textContent = modalQuantity;
+    });
+    qtyConfirm.addEventListener('click', confirmAddToBasket);
+    qtyCancel.addEventListener('click', closeQtyModal);
+    qtyBackdrop.addEventListener('click', closeQtyModal);
+
+    // Close basket/modal with Escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeBasketPanel();
+        if (e.key === 'Escape') {
+            if (!qtyModal.classList.contains('hidden')) {
+                closeQtyModal();
+            } else {
+                closeBasketPanel();
+            }
+        }
     });
 
     // ============================================================

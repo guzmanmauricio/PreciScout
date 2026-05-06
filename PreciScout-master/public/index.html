@@ -65,13 +65,22 @@
                 <ion-icon name="close-outline"></ion-icon>
             </button>
         </div>
-        <div id="basketItems" class="basket-items">
-            <!-- Items rendered dynamically -->
-        </div>
-        <div id="basketEmpty" class="basket-empty">
-            <ion-icon name="bag-outline"></ion-icon>
-            <p>Tu canasta está vacía</p>
-            <span>Busca productos y agrégalos aquí</span>
+        <div class="basket-panel-body">
+            <div class="basket-panel-left">
+                <div id="basketItems" class="basket-items">
+                    <!-- Items rendered dynamically -->
+                </div>
+                <div id="basketEmpty" class="basket-empty">
+                    <ion-icon name="bag-outline"></ion-icon>
+                    <p>Tu canasta está vacía</p>
+                    <span>Busca productos y agrégalos aquí</span>
+                </div>
+            </div>
+            <div class="basket-panel-right">
+                <div id="basketSummary" class="basket-summary hidden">
+                    <!-- Total and category breakdown rendered dynamically -->
+                </div>
+            </div>
         </div>
     </aside>
 
@@ -119,6 +128,39 @@
 
         <div id="error-message" class="hidden">
             <p id="error-text">Ocurrió un error al buscar.</p>
+        </div>
+    </div>
+
+    <!-- ============ QUANTITY PICKER MODAL ============ -->
+    <div id="qtyModal" class="qty-modal hidden">
+        <div class="qty-modal-backdrop"></div>
+        <div class="qty-modal-content">
+            <div class="qty-modal-header">
+                <ion-icon name="basket-outline"></ion-icon>
+                <span>Agregar a Mi Canasta</span>
+            </div>
+            <div id="qtyModalProduct" class="qty-modal-product">
+                <!-- Product info rendered dynamically -->
+            </div>
+            <div class="qty-modal-controls">
+                <span class="qty-modal-label">Cantidad:</span>
+                <div class="qty-stepper">
+                    <button id="qtyMinus" class="qty-stepper-btn" title="Menos">
+                        <ion-icon name="remove-outline"></ion-icon>
+                    </button>
+                    <span id="qtyValue" class="qty-stepper-value">1</span>
+                    <button id="qtyPlus" class="qty-stepper-btn" title="Más">
+                        <ion-icon name="add-outline"></ion-icon>
+                    </button>
+                </div>
+            </div>
+            <div class="qty-modal-actions">
+                <button id="qtyCancel" class="qty-modal-btn qty-modal-cancel">Cancelar</button>
+                <button id="qtyConfirm" class="qty-modal-btn qty-modal-confirm">
+                    <ion-icon name="basket-outline"></ion-icon>
+                    Agregar
+                </button>
+            </div>
         </div>
     </div>
 
